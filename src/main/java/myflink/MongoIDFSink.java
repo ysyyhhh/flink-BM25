@@ -35,7 +35,12 @@ public class MongoIDFSink extends RichOutputFormat<ConcurrentHashMap<String,Long
         BasicDBObject searchDoc = new BasicDBObject().append("_id",tf.pid);
         BasicDBObject newDoc = new BasicDBObject().append("$set",doc);
 
-        coll.findOneAndUpdate(searchDoc,newDoc,new FindOneAndUpdateOptions().upsert(true));
+        try{
+
+            coll.findOneAndUpdate(searchDoc,newDoc,new FindOneAndUpdateOptions().upsert(true));
+        }catch (Exception e){
+
+        }
     }
 
     @Override

@@ -54,7 +54,19 @@ public class MongoTFSink extends RichOutputFormat<ArrayList<Tuple2<String,Long>>
         BasicDBObject searchDoc = new BasicDBObject().append("_id",tf.pid);
         BasicDBObject newDoc = new BasicDBObject().append("$set",doc);
 
-        coll.findOneAndUpdate(searchDoc,newDoc,new FindOneAndUpdateOptions().upsert(true));
+//        try{
+//            if(coll.find(searchDoc).first()==null){
+//                doc.append("_id",tf.pid);
+//                coll.insertOne(doc);
+//            }else {
+
+        coll.findOneAndUpdate(searchDoc, newDoc, new FindOneAndUpdateOptions().upsert(true));
+//            }
+//        }catch (Exception e) {
+////            System.out.println("pid:" + tf.pid);
+////            throw new RuntimeException(e);
+//        }
+
     }
 
     @Override

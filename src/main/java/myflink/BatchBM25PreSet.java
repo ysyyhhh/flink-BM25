@@ -124,7 +124,8 @@ public class BatchBM25PreSet {
 
             // 设置运行模式
 //            env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
-            env.setParallelism(1);
+
+            env.setParallelism(32);
 
             // 2.加载数据源
 //            DataStreamSource<String> elementsSource = env.socketTextStream("localhost", 9000);
@@ -286,7 +287,7 @@ public class BatchBM25PreSet {
             }
 
             //输出全局词频
-            initSet.print();
+//            initSet.print();
 
             initSet.output(
                     new MongoIDFSink()

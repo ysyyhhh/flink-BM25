@@ -1,3 +1,3 @@
 Manifest-Version: 1.0
-Main-Class: myflink.backup.BatchBM25PrePrint
+Main-Class: myflink.BatchBM25PreSet
 
