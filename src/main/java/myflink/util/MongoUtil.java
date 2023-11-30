@@ -1,20 +1,16 @@
 package myflink.util;
 
 
-import java.util.ArrayList;
-import java.util.List;
-
-import com.mongodb.*;
+import com.mongodb.BasicDBObject;
+import com.mongodb.client.*;
+import com.mongodb.client.model.Filters;
+import com.mongodb.client.result.DeleteResult;
 import org.bson.Document;
 import org.bson.conversions.Bson;
 import org.bson.types.ObjectId;
 
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoCursor;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.MongoIterable;
-import com.mongodb.client.model.Filters;
-import com.mongodb.client.result.DeleteResult;
+import java.util.ArrayList;
+import java.util.List;
 
 public enum MongoUtil {
 
@@ -33,19 +29,20 @@ public enum MongoUtil {
 
         // 大部分用户使用mongodb都在安全内网下，但如果将mongodb设为安全验证模式，就需要在客户端提供用户名和密码：
 
-        MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
-        // options.autoConnectRetry(true);// 自动重连true
-        // options.maxAutoConnectRetryTime(10); // the maximum auto connect retry time
-        builder.connectionsPerHost(300);// 连接池设置为300个连接,默认为100
-        builder.connectTimeout(15000);// 连接超时，推荐>3000毫秒
-        builder.maxWaitTime(5000); //
-        builder.socketTimeout(0);// 套接字超时时间，0无限制
-        builder.threadsAllowedToBlockForConnectionMultiplier(5000);// 线程队列数，如果连接线程排满了队列就会抛出“Out of semaphores to get db”错误。
-        MongoClientOptions options = builder.build();
-
-        MongoClientURI connectionString = new MongoClientURI("mongodb://admin:123456@172.19.241.228:27017/candidate?authSource=admin");
+//        MongoClientOptions.Builder builder = new MongoClientOptions.Builder();
+//        // options.autoConnectRetry(true);// 自动重连true
+//        // options.maxAutoConnectRetryTime(10); // the maximum auto connect retry time
+//        builder.connectionsPerHost(300);// 连接池设置为300个连接,默认为100
+//        builder.connectTimeout(15000);// 连接超时，推荐>3000毫秒
+//        builder.maxWaitTime(5000); //
+//        builder.socketTimeout(0);// 套接字超时时间，0无限制
+//        builder.threadsAllowedToBlockForConnectionMultiplier(5000);// 线程队列数，如果连接线程排满了队列就会抛出“Out of semaphores to get db”错误。
+//        MongoClientOptions options = builder.build();
+        String uri = "mongodb://admin:123456@172.19.241.228:27017/candidate?authSource=admin";
+//        String uri = "mongodb://admin:123456@localhost:27017/candidate?authSource=admin";
+//        MongoClientURI connectionString = new MongoClientURI("mongodb://admin:123456@172.19.241.228:27017/candidate?authSource=admin");
         //使用数据库账号密码连接
-         instance.mongoClient = new MongoClient(connectionString);
+         instance.mongoClient = MongoClients.create(uri);
 
     }
 
@@ -130,7 +127,7 @@ public enum MongoUtil {
 
     /** 统计数 */
     public int getCount(MongoCollection<Document> coll) {
-        int count = (int) coll.count();
+        int count = (int) coll.countDocuments();
         return count;
     }
 

@@ -13,6 +13,8 @@
 		<maven.compiler.source>8</maven.compiler.source>
 		<maven.compiler.target>8</maven.compiler.target>
 		<flink.version>1.12.2</flink.version>
+		<mongo.driver.version>3.12.6</mongo.driver.version>
+		<mongo.driver.core.version>4.1.0</mongo.driver.core.version>
 	</properties>
 	<dependencies>
 
@@ -24,9 +26,19 @@
 		<!--java mongo -->
 		<dependency>
 			<groupId>org.mongodb</groupId>
-			<artifactId>mongo-java-driver</artifactId>
-			<version>3.2.0</version>
+			<artifactId>mongodb-driver-sync</artifactId>
+			<version>4.11.1</version>
 		</dependency>
+<!--		<dependency>-->
+<!--			<groupId>org.mongodb</groupId>-->
+<!--			<artifactId>mongodb-driver</artifactId>-->
+<!--			<version>${mongo.driver.version}</version>-->
+<!--		</dependency>-->
+<!--		<dependency>-->
+<!--			<groupId>org.mongodb</groupId>-->
+<!--			<artifactId>bson</artifactId>-->
+<!--			<version>${mongo.driver.core.version}</version>-->
+<!--		</dependency>-->
 		<dependency>
 			<groupId>org.apache.flink</groupId>
 			<artifactId>flink-clients_2.12</artifactId>
@@ -62,10 +74,29 @@
 			<artifactId>flink-table-api-java-bridge_2.12</artifactId>
 			<version>${flink.version}</version>
 		</dependency>
-		<dependency>
-			<groupId>org.mongodb</groupId>
-			<artifactId>mongodb-driver-sync</artifactId>
-			<version>4.11.1</version>
-		</dependency>
 	</dependencies>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-shade-plugin</artifactId>
+				<version>3.2.4</version>
+				<executions>
+					<execution>
+						<phase>package</phase>
+						<goals>
+							<goal>shade</goal>
+						</goals>
+						<configuration>
+							<transformers>
+								<transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+									<mainClass>myflink.BatchBM25PreSet</mainClass>
+								</transformer>
+							</transformers>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
 </project>
