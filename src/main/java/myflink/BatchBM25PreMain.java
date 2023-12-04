@@ -25,17 +25,12 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 用于批处理的BM25预处理
- * 改成使用dataStream
+ * 用于批处理的BM25预处理 计算TF
  * args[0] 为 limit 表示从MongoDB中取多少条数据,默认为-1,表示取全部
  * 输出：
- *    output : 生成的tf文件夹,每个文件对应一个pid
- *       {pid}.txt
- *    idf.txt : 全局的idf文件
+ *
  */
 public class BatchBM25PreMain {
-
-
 
     private MongoUtil mongoUtil = MongoUtil.instance;
 
@@ -211,8 +206,8 @@ public class BatchBM25PreMain {
 
                 //第四步，将整个DataSet<Tuple2<String, Long>> distinctOperator合成一个 ArrayList<Tuple2<String, Long>>>
                 // countOperator.count() == 1
-                List<Tuple2<String, Long>> wordList = distinctOperator.collect();
-                DataSet<List<Tuple2<String, Long>>> countOperator =  env.fromElements( wordList);
+
+                DataSet<List<Tuple2<String, Long>>> countOperator =  env.fromElements( distinctOperator.collect());
 
                 //第五步，对countOperator进行排序，得到DataSet<ArrayList<Tuple2<String, Long>>>
                 // sortedOperator.count() == 1
@@ -245,9 +240,9 @@ public class BatchBM25PreMain {
                         new MongoTFSink(pid)
                 );
 
-
-                // 第七步，将本次案件的词频统计结果合并到全局的IDF中
-                saveIDF(wordList);
+//                // 第七步，将本次案件的词频统计结果合并到全局的IDF中
+//                List<Tuple2<String, Long>> sortedList = sortedOperator.collect().get(0);
+//                saveIDF(sortedList);
 
                 env.execute("flink-batch-bm25-preprocess-single");
             }

@@ -1,4 +1,4 @@
-package myflink;
+package myflink.backup;
 
 import com.mongodb.BasicDBObject;
 import com.mongodb.client.MongoCollection;

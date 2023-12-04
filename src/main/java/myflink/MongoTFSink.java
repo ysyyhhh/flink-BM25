@@ -47,7 +47,7 @@ public class MongoTFSink extends RichOutputFormat<ArrayList<Tuple2<String,Long>>
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        MongoCollection<Document> coll = mongoUtil.getCollection("candidate","tf4");
+        MongoCollection<Document> coll = mongoUtil.getCollection("candidate","tf5");
 
         Document doc = tf.toDoc();
 
