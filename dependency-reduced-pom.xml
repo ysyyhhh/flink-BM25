@@ -18,7 +18,7 @@
             <configuration>
               <transformers>
                 <transformer>
-                  <mainClass>myflink.BatchBM25PreSet</mainClass>
+                  <mainClass>myflink.backup.StreamingJob.BatchBM25PreSet</mainClass>
                 </transformer>
               </transformers>
             </configuration>
