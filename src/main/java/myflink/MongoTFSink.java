@@ -47,26 +47,14 @@ public class MongoTFSink extends RichOutputFormat<ArrayList<Tuple2<String,Long>>
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-        MongoCollection<Document> coll = mongoUtil.getCollection("candidate","tf");
-        //如果已经存在,则更新
+        MongoCollection<Document> coll = mongoUtil.getCollection("candidate","tf4");
+
         Document doc = tf.toDoc();
 
         BasicDBObject searchDoc = new BasicDBObject().append("_id",tf.pid);
         BasicDBObject newDoc = new BasicDBObject().append("$set",doc);
 
-//        try{
-//            if(coll.find(searchDoc).first()==null){
-//                doc.append("_id",tf.pid);
-//                coll.insertOne(doc);
-//            }else {
-
         coll.findOneAndUpdate(searchDoc, newDoc, new FindOneAndUpdateOptions().upsert(true));
-//            }
-//        }catch (Exception e) {
-////            System.out.println("pid:" + tf.pid);
-////            throw new RuntimeException(e);
-//        }
-
     }
 
     @Override

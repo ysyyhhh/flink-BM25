@@ -72,21 +72,19 @@ public class BatchBM25Pre {
     private void execute(String[] args) throws Exception {
         {
 
-            // 1.准备环境
-//            StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-
+            // 准备环境
             final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
             DataSet<Tuple2<String, Long>> initSet = init(env);
 
             // 设置运行模式
-//            env.setRuntimeMode(RuntimeExecutionMode.AUTOMATIC);
             env.setParallelism(5);
 
-            // 2.加载数据源
+            // 加载数据源
             List<String> listSource = getInitData();
             DataSet<String> elementsSource = env.fromCollection(listSource);
-            System.out.print("elementsSource: " + elementsSource.toString());
+
+
             Set<String> expectedNature = new HashSet<String>() {{
                 add("n");
                 add("nr");

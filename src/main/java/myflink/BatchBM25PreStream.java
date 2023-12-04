@@ -16,7 +16,6 @@ import org.apache.flink.api.java.ExecutionEnvironment;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.util.Collector;
 import org.bson.Document;
-import scala.Int;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -42,13 +41,13 @@ public class BatchBM25PreStream {
     // 词性
     private static Set<String> expectedNature = new HashSet<String>() {{
         add("n");
-        add("nr");
+//        add("nr");
         add("ns");
         add("nt");
         add("nz");
-        add("nw");
-        add("nl");
-        add("ng");
+//        add("nw");
+//        add("nl");
+//        add("ng");
 //                add("t");
 //                add("tg");
 //                add("s");
@@ -56,7 +55,11 @@ public class BatchBM25PreStream {
     }};
 
     // 停用词
-    private static Set<String> stopWords = new HashSet<>();
+    private static Set<String> stopWords = new HashSet<String>() {{
+        add("中华人民共和国");
+    }};
+
+    public static final Integer MAX_WORD_COUNT = 30;
     /**
      * 获取所有pid
      */
@@ -113,6 +116,25 @@ public class BatchBM25PreStream {
 
     }
 
+    public void saveIDF(List<Tuple2<String,Long>> idfList) throws Exception {
+        TF tf = null;
+        try {
+            tf = new TF(0,idfList);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        MongoCollection<Document> coll = mongoUtil.getCollection("candidate","idf3");
+        //如果已经存在,则更新
+        Document doc = tf.toDoc();
+
+        BasicDBObject searchDoc = new BasicDBObject().append("_id",tf.pid);
+        BasicDBObject newDoc = new BasicDBObject().append("$set",doc);
+        coll.findOneAndUpdate(searchDoc, newDoc, new FindOneAndUpdateOptions().upsert(true));
+
+    }
+    DataSet<Tuple2<String, Long> > IDFSet = null;
+    DataSet<ConcurrentHashMap<String, Long>> unionSet = null;
+    DataSet<ArrayList<Tuple2<String, Long>>> idfList = null;
     public static void main(String[] args) throws Exception {
         new BatchBM25PreStream().execute(args);
     }
@@ -130,21 +152,28 @@ public class BatchBM25PreStream {
             // 准备环境
             final ExecutionEnvironment env = ExecutionEnvironment.getExecutionEnvironment();
 
+            IDFSet = env.fromElements(new Tuple2<>("flink", 0L));
+
+            unionSet = env.fromElements(new ConcurrentHashMap<String, Long>());
             // 设置运行模式
             env.setParallelism(8);
 
+            //获取案件pid列表
             List<Integer> pidList = getPidList();
 
-            System.out.println("pidList.size(): " + pidList.size());
+            if(limit == -1){
+                limit = pidList.size() + 1;
+            }
 
-            int count = 0;
+            if (limit > pidList.size())
+                limit = pidList.size();
+            pidList = pidList.subList(0,limit);
+
+            int i = 0;
             for(Integer pid : pidList){
-
-                count++;
-                if(count % 50 == 0)
-                    System.out.println("count: " + count);
-                if(count > limit){
-                    break;
+                i++;
+                if(i % 50 == 0){
+                    System.out.println("i = " + i);
                 }
 
                 //获取单个案件信息
@@ -153,12 +182,11 @@ public class BatchBM25PreStream {
                 //案件内容
                 String s = source.f1;
 
-                // 1. 获取数据源
+                // 第一步. 获取数据
                 DataSet<String> elementsSource = env.fromElements(s);
 
 
-
-                // 第一步，对String进行分词，得到ArrayList, Tuple2<String,String>> ("词","词性")
+                // 第二步，对String进行分词，得到ArrayList, Tuple2<String,String>> ("词","词性")
                 DataSet<ArrayList<Tuple2<String, String>> > splitOperator = elementsSource.flatMap(new FlatMapFunction<String, ArrayList<Tuple2<String, String>>>() {
                     @Override
                     public void flatMap(String value, Collector<ArrayList<Tuple2<String, String>>> out) throws Exception {
@@ -178,7 +206,7 @@ public class BatchBM25PreStream {
                     }
                 });
 
-                //第二步，对ArrayList<Tuple2<String, String>>进行去重，得到ConcurrentHashMap<String, String> ("词","词性")
+                //第三步，对ArrayList<Tuple2<String, String>>进行去重，得到ConcurrentHashMap<String, String> ("词","词性")
                 DataSet<ConcurrentHashMap<String, Long>> distinctOperator = splitOperator.map(new MapFunction<ArrayList<Tuple2<String, String>>, ConcurrentHashMap<String, Long>>() {
                     @Override
                     public ConcurrentHashMap<String, Long> map(ArrayList<Tuple2<String, String>> value) throws Exception {
@@ -196,15 +224,17 @@ public class BatchBM25PreStream {
                     }
                 });
 
-                //第三步，对ConcurrentHashMap<String, String>进行排序，得到ArrayList<Tuple2<String, String>> ("词","词性")
+                //第四步，对ConcurrentHashMap<String, String>进行排序，得到ArrayList<Tuple2<String, String>> ("词","词性")
                 DataSet<ArrayList<Tuple2<String, Long>> > sortedOperator = distinctOperator.map(new MapFunction<ConcurrentHashMap<String, Long>, ArrayList<Tuple2<String, Long>>>() {
                     @Override
                     public ArrayList<Tuple2<String, Long>> map(ConcurrentHashMap<String, Long> value) throws Exception {
                         ArrayList<Tuple2<String, Long>> wordCountArrayList = new ArrayList<>();
-                        value.forEach((key, value1) -> wordCountArrayList.add(new Tuple2<>(key, value1)));
-                        //避免集合为空
-                        wordCountArrayList.add(new Tuple2<>("flink", 0L));
 
+
+//                        value.forEach((key, value1) -> wordCountArrayList.add(new Tuple2<>(key, value1)));
+                        for (String key : value.keySet()) {
+                            wordCountArrayList.add(new Tuple2<>(key, value.get(key)));
+                        }
                         //根据词频排序
                         wordCountArrayList.sort((o1, o2) -> {
                             if (o1.f1 > o2.f1) {
@@ -215,17 +245,101 @@ public class BatchBM25PreStream {
                                 return 0;
                             }
                         });
+
+                        //并保留前MAX_WORD_COUNT个
+                        if (wordCountArrayList.size() > MAX_WORD_COUNT) {
+                            wordCountArrayList = new ArrayList<>(wordCountArrayList.subList(0, MAX_WORD_COUNT));
+                        }
+
                         return wordCountArrayList;
                     }
                 });
 
-                // 第四步，保存到MongoDB
+                // 第五步，保存到MongoDB
                 sortedOperator.output(
                         new MongoTFSink(pid)
                 );
 
                 env.execute("flink-hello-world");
+                // list转换成map
+//                DataSet<ConcurrentHashMap<String, Long>> preUnion = sortedOperator.map(new MapFunction<ArrayList<Tuple2<String, Long>>, ConcurrentHashMap<String, Long>>() {
+//                    @Override
+//                    public ConcurrentHashMap<String, Long> map(ArrayList<Tuple2<String, Long>> value) throws Exception {
+//                        ConcurrentHashMap<String, Long> wordMap = new ConcurrentHashMap<>(16);
+//                        for (Tuple2<String, Long> tuple2 : value) {
+//                            String word = tuple2.f0;
+//                            wordMap.put(word, 1L);
+//                        }
+//                        return wordMap;
+//                    }
+//                });
+//
+//
+//                // 把preUnion和unionSet合并，按照二元组第一个字段word分组，把第二个字段统计出来
+//                unionSet = preUnion.union(unionSet).reduce((value1, value2) -> {
+//                    ConcurrentHashMap<String, Long> wordMap = new ConcurrentHashMap<>(16);
+//                    for (String key : value1.keySet()) {
+//                        if (wordMap.containsKey(key)) {
+//                            wordMap.put(key, wordMap.get(key) + 1);
+//                        } else {
+//                            wordMap.put(key, 1L);
+//                        }
+//                    }
+//                    for (String key : value2.keySet()) {
+//                        if (wordMap.containsKey(key)) {
+//                            wordMap.put(key, wordMap.get(key) + 1);
+//                        } else {
+//                            wordMap.put(key, 1L);
+//                        }
+//                    }
+//                    return wordMap;
+//                });
+//                if(i % 50 == 0)
+//                    System.out.println("IDFSet.count() = " + IDFSet.count());
+
             }
+//            unionSet.print();
+
+            System.out.println("unionSet.count() = " + unionSet.count());
+
+            //取unionSet的第一个元素 并转换成List
+//            DataSet<ConcurrentHashMap<String, Long>> idfSet = unionSet.first(1);
+
+            //把ConcurrentHashMap<String, Long>转换成List<Tuple2<String, Long>>
+//            idfList = unionSet.map(new MapFunction<ConcurrentHashMap<String, Long>, ArrayList<Tuple2<String, Long>>>() {
+//                @Override
+//                public ArrayList<Tuple2<String, Long>> map(ConcurrentHashMap<String, Long> value) throws Exception {
+//                    ArrayList<Tuple2<String, Long>> wordCountArrayList = new ArrayList<>();
+//                    for (String key : value.keySet()) {
+//                        wordCountArrayList.add(new Tuple2<>(key, value.get(key)));
+//                    }
+//                    //根据词频排序
+//                    wordCountArrayList.sort((o1, o2) -> {
+//                        if (o1.f1 > o2.f1) {
+//                            return -1;
+//                        } else if (o1.f1 < o2.f1) {
+//                            return 1;
+//                        } else {
+//                            return 0;
+//                        }
+//                    });
+//                    return wordCountArrayList;
+//                }
+//            });
+
+            //保存到MongoDB
+//            idfList.output(
+//                    new MongoIDFSink()
+//            );
+            // 把IDFSet的所有元素转为一个list
+//            List<Tuple2<String, Long>> idfList = IDFSet.collect();
+//            System.out.println("idfList.size() = " + idfList.size());
+
+            // 保存到MongoDB
+//            saveIDF(idfList);
+
+//            IDFSet.print();
+            env.execute("flink-hello-world");
         }
     }
 }

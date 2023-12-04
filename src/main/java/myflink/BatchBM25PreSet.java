@@ -289,9 +289,9 @@ public class BatchBM25PreSet {
             //输出全局词频
 //            initSet.print();
 
-            initSet.output(
-                    new MongoIDFSink()
-            );
+//            initSet.output(
+//                    new MongoIDFSink()
+//            );
             // 3.执行
             env.execute("flink-hello-world");
         }
